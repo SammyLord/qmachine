@@ -7,7 +7,7 @@ A high-performance, realistic simulation of a quantum computer written in Go, fe
 - 2000 qubit quantum computer simulation
 - 100% fidelity quantum operations
 - Quantum Volume of 4269
-- RISC-V based instruction set
+- RISC-V based instruction set with 128 registers
 - Interactive REPL interface
 - Support for common quantum gates:
   - Pauli gates (X, Y, Z)

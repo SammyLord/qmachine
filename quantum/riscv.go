@@ -31,8 +31,8 @@ type QuantumRISCVMachine struct {
 	program     []Instruction
 	riscProgram []RISCInstruction
 	pc          uint32
-	registers   [32]uint64
-	quantumRegs [32]*QuantumState
+	registers   [128]uint64
+	quantumRegs [128]*QuantumState
 	memory      []byte
 }
 
@@ -43,8 +43,8 @@ func NewQuantumRISCVMachine(numQubits int) *QuantumRISCVMachine {
 		program:     make([]Instruction, 0),
 		riscProgram: make([]RISCInstruction, 0),
 		pc:          0,
-		registers:   [32]uint64{},
-		quantumRegs: [32]*QuantumState{},
+		registers:   [128]uint64{},
+		quantumRegs: [128]*QuantumState{},
 		memory:      make([]byte, 1024*1024), // 1MB of memory
 	}
 }
@@ -495,7 +495,7 @@ func parseRegister(reg string) (uint8, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid register number: %v", err)
 	}
-	if num > 31 {
+	if num > 127 {
 		return 0, fmt.Errorf("register number out of range: %d", num)
 	}
 	return uint8(num), nil
@@ -524,7 +524,7 @@ func parseLoadStore(arg string) (uint8, int64, error) {
 }
 
 // GetRegisters returns the current state of all registers
-func (m *QuantumRISCVMachine) GetRegisters() [32]uint64 {
+func (m *QuantumRISCVMachine) GetRegisters() [128]uint64 {
 	return m.registers
 }
 
