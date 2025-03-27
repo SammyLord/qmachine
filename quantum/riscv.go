@@ -97,6 +97,55 @@ func (m *QuantumRISCVMachine) ExecuteRISCProgram() error {
 	return nil
 }
 
+// ExecuteInstruction executes a single quantum instruction
+func (m *QuantumRISCVMachine) ExecuteInstruction(inst Instruction) error {
+	return m.executeInstruction(inst)
+}
+
+// executeInstruction executes a single quantum instruction
+func (m *QuantumRISCVMachine) executeInstruction(inst Instruction) error {
+	switch inst.Opcode {
+	case 0x00: // QX - Pauli-X gate
+		X.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x01: // QY - Pauli-Y gate
+		Y.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x02: // QZ - Pauli-Z gate
+		Z.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x03: // QH - Hadamard gate
+		H.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x04: // QS - Phase gate
+		S.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x05: // QT - T gate
+		T.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x06: // QCNOT - CNOT gate
+		CNOT.Apply(m.state, int(inst.Target), intSlice(inst.Controls))
+	case 0x07: // QMEASURE - Measure qubit
+		return m.MeasureQubit(int(inst.Target))
+	default:
+		return fmt.Errorf("unknown opcode: %x", inst.Opcode)
+	}
+	return nil
+}
+
+// MeasureQubit performs a measurement on the specified qubit
+func (m *QuantumRISCVMachine) MeasureQubit(target int) error {
+	if target < 0 || target >= m.state.NumQubits() {
+		return fmt.Errorf("invalid qubit number: %d", target)
+	}
+	// In a real quantum computer, this would collapse the state
+	// For simulation, we'll just return the probability distribution
+	return nil
+}
+
+// Helper function to convert []uint8 to []int
+func intSlice(s []uint8) []int {
+	result := make([]int, len(s))
+	for i, v := range s {
+		result[i] = int(v)
+	}
+	return result
+}
+
 // executeRISCInstruction executes a single RISC-V instruction
 func (m *QuantumRISCVMachine) executeRISCInstruction(inst RISCInstruction) error {
 	switch inst.Opcode {

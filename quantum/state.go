@@ -46,7 +46,7 @@ func (qs *QuantumState) Normalize() {
 	}
 	norm := 1.0 / math.Sqrt(sum)
 	for i := range qs.amplitudes {
-		qs.amplitudes[i] *= Complex128(norm)
+		qs.amplitudes[i] *= complex(norm, 0)
 	}
 }
 
