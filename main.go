@@ -48,12 +48,7 @@ func main() {
 			}
 		}
 
-		// Display final register state
-		registers := hostMachine.GetRegisters()
-		fmt.Println("\nFinal register state:")
-		for i, reg := range registers {
-			fmt.Printf("  x%d: %d\n", i, reg)
-		}
+		fmt.Println("Quantum RISC-V program executed successfully using host-native execution")
 		os.Exit(0)
 	}
 
@@ -68,6 +63,14 @@ func main() {
 			fmt.Printf("Error executing quantum RISC-V program: %v\n", err)
 			os.Exit(1)
 		}
+
+		// Display final register state for VM mode
+		registers := repl.machine.GetRegisters()
+		fmt.Println("\nFinal register state:")
+		for i, reg := range registers {
+			fmt.Printf("  x%d: %d\n", i, reg)
+		}
+
 		fmt.Println("Quantum RISC-V program executed successfully")
 		os.Exit(0)
 	}

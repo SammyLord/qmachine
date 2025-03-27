@@ -3,6 +3,7 @@ package quantum
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -51,6 +52,21 @@ func NewQuantumRISCVMachine(numQubits int) *QuantumRISCVMachine {
 
 // LoadRISCProgram loads a RISC-V program from a file
 func (m *QuantumRISCVMachine) LoadRISCProgram(filename string) error {
+	// Check if file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// Try alternate extension
+		altFilename := filename
+		if strings.HasSuffix(filename, ".riscq") {
+			altFilename = strings.TrimSuffix(filename, ".riscq") + ".riscv"
+		} else if strings.HasSuffix(filename, ".riscv") {
+			altFilename = strings.TrimSuffix(filename, ".riscv") + ".riscq"
+		}
+		if _, err := os.Stat(altFilename); os.IsNotExist(err) {
+			return fmt.Errorf("file not found: %s or %s", filename, altFilename)
+		}
+		filename = altFilename
+	}
+
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("error reading file: %v", err)
@@ -486,6 +502,19 @@ func parseRISCInstruction(instruction string) (RISCInstruction, error) {
 		rs1, err := parseRegister(parts[2])
 		if err != nil {
 			return RISCInstruction{}, err
+		}
+		// Check if the immediate is a register reference
+		if strings.HasPrefix(parts[3], "x") {
+			rs2, err := parseRegister(parts[3])
+			if err != nil {
+				return RISCInstruction{}, err
+			}
+			// Convert to regular add instruction
+			inst.Opcode = "add"
+			inst.Rd = rd
+			inst.Rs1 = rs1
+			inst.Rs2 = rs2
+			return inst, nil
 		}
 		imm, err := strconv.ParseInt(parts[3], 10, 64)
 		if err != nil {
