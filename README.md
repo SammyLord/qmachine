@@ -154,3 +154,6 @@ Before you say something like "ackshully *snort* quantum mechanics makes this im
 * ***Close enought for demonstration?*** Yes.
 
 * ***Still awesome?*** IMHO yes.
+
+(Also, Happy99th GitHub repo, Sneed Group.)
+![99 repos in Sneed Group GitHub org.](99repos.png)
