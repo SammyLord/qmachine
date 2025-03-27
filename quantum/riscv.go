@@ -17,12 +17,12 @@ type Instruction struct {
 
 // RISCInstruction represents a RISC-V instruction
 type RISCInstruction struct {
-	Opcode  string
-	Rd      uint8
-	Rs1     uint8
-	Rs2     uint8
-	Imm     int64
-	Offset  int64
+	Opcode string
+	Rd     uint8
+	Rs1    uint8
+	Rs2    uint8
+	Imm    int64
+	Offset int64
 }
 
 // QuantumRISCVMachine represents our quantum computer with RISC-V instruction set
@@ -149,6 +149,51 @@ func intSlice(s []uint8) []int {
 // executeRISCInstruction executes a single RISC-V instruction
 func (m *QuantumRISCVMachine) executeRISCInstruction(inst RISCInstruction) error {
 	switch inst.Opcode {
+	case "qinit":
+		// Initialize a quantum register with |0⟩ state
+		m.quantumRegs[inst.Rd] = NewQuantumState(1)
+		m.quantumRegs[inst.Rd].InitializeZeroState()
+	case "qapply":
+		// Apply a quantum gate to a quantum register
+		if m.quantumRegs[inst.Rs1] == nil {
+			return fmt.Errorf("quantum register x%d not initialized", inst.Rs1)
+		}
+		// Use the immediate value as the gate type
+		gateType := uint8(inst.Imm)
+		instruction := Instruction{
+			Opcode:   gateType,
+			Target:   0, // Target the first qubit in the register
+			Controls: []uint8{},
+		}
+		if err := m.executeInstruction(instruction); err != nil {
+			return fmt.Errorf("error applying quantum gate: %v", err)
+		}
+	case "qmeasure":
+		// Measure a quantum register
+		if m.quantumRegs[inst.Rs1] == nil {
+			return fmt.Errorf("quantum register x%d not initialized", inst.Rs1)
+		}
+		if err := m.MeasureQubit(0); err != nil {
+			return fmt.Errorf("error measuring quantum register: %v", err)
+		}
+	case "qentangle":
+		// Entangle two quantum registers
+		if m.quantumRegs[inst.Rs1] == nil || m.quantumRegs[inst.Rs2] == nil {
+			return fmt.Errorf("quantum registers not initialized")
+		}
+		// Create a new 2-qubit state
+		entangled := NewQuantumState(2)
+		// Apply CNOT gate
+		instruction := Instruction{
+			Opcode:   0x06, // CNOT gate
+			Target:   1,    // Target the second qubit
+			Controls: []uint8{0},
+		}
+		if err := m.executeInstruction(instruction); err != nil {
+			return fmt.Errorf("error entangling quantum registers: %v", err)
+		}
+		// Store the entangled state in the destination register
+		m.quantumRegs[inst.Rd] = entangled
 	case "add":
 		m.registers[inst.Rd] = m.registers[inst.Rs1] + m.registers[inst.Rs2]
 	case "sub":
@@ -487,7 +532,7 @@ func parseRISCInstruction(instruction string) (RISCInstruction, error) {
 func parseRegister(reg string) (uint8, error) {
 	// Remove any trailing commas
 	reg = strings.TrimRight(reg, ",")
-	
+
 	if !strings.HasPrefix(reg, "x") {
 		return 0, fmt.Errorf("invalid register format: %s", reg)
 	}
@@ -536,4 +581,4 @@ func (m *QuantumRISCVMachine) GetState() *QuantumState {
 // GetQuantumVolume returns the quantum volume of the machine
 func (m *QuantumRISCVMachine) GetQuantumVolume() int {
 	return 4269 // As specified in the requirements
-} 
+}

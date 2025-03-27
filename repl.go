@@ -39,7 +39,12 @@ func (r *REPL) Start() {
 	fmt.Println("  help                               - Show this help message")
 	fmt.Println("  exit                               - Exit REPL")
 	fmt.Println("\nAvailable gates: X, Y, Z, H, S, T, CNOT")
-	fmt.Println("\nRISC-V Instructions:")
+	fmt.Println("\nCustom Quantum RISC-V Instructions (Q-RISC-V Extensions):")
+	fmt.Println("  qinit rd                          - Initialize quantum register with |0⟩")
+	fmt.Println("  qapply rd, rs1, imm              - Apply quantum gate (imm: 0=X, 1=Y, 2=Z, 3=H, 4=S, 5=T, 6=CNOT)")
+	fmt.Println("  qmeasure rd, rs1                 - Measure quantum register")
+	fmt.Println("  qentangle rd, rs1, rs2          - Entangle two quantum registers")
+	fmt.Println("\nStandard RISC-V Instructions:")
 	fmt.Println("  add rd, rs1, rs2    - Add registers")
 	fmt.Println("  sub rd, rs1, rs2    - Subtract registers")
 	fmt.Println("  and rd, rs1, rs2    - AND registers")
@@ -139,6 +144,50 @@ func (r *REPL) showHelp() {
 	fmt.Println("  help                               - Show this help message")
 	fmt.Println("  exit                               - Exit REPL")
 	fmt.Println("\nAvailable gates: X, Y, Z, H, S, T, CNOT")
+	fmt.Println("\nCustom Quantum RISC-V Instructions (Q-RISC-V Extensions):")
+	fmt.Println("  qinit rd                          - Initialize quantum register with |0⟩")
+	fmt.Println("  qapply rd, rs1, imm              - Apply quantum gate (imm: 0=X, 1=Y, 2=Z, 3=H, 4=S, 5=T, 6=CNOT)")
+	fmt.Println("  qmeasure rd, rs1                 - Measure quantum register")
+	fmt.Println("  qentangle rd, rs1, rs2          - Entangle two quantum registers")
+	fmt.Println("\nStandard RISC-V Instructions:")
+	fmt.Println("  add rd, rs1, rs2    - Add registers")
+	fmt.Println("  sub rd, rs1, rs2    - Subtract registers")
+	fmt.Println("  and rd, rs1, rs2    - AND registers")
+	fmt.Println("  or rd, rs1, rs2     - OR registers")
+	fmt.Println("  xor rd, rs1, rs2    - XOR registers")
+	fmt.Println("  sll rd, rs1, rs2    - Shift left logical")
+	fmt.Println("  srl rd, rs1, rs2    - Shift right logical")
+	fmt.Println("  sra rd, rs1, rs2    - Shift right arithmetic")
+	fmt.Println("  slt rd, rs1, rs2    - Set if less than")
+	fmt.Println("  sltu rd, rs1, rs2   - Set if less than unsigned")
+	fmt.Println("  addi rd, rs1, imm   - Add immediate")
+	fmt.Println("  slli rd, rs1, imm   - Shift left logical immediate")
+	fmt.Println("  srli rd, rs1, imm   - Shift right logical immediate")
+	fmt.Println("  srai rd, rs1, imm   - Shift right arithmetic immediate")
+	fmt.Println("  andi rd, rs1, imm   - AND immediate")
+	fmt.Println("  ori rd, rs1, imm    - OR immediate")
+	fmt.Println("  xori rd, rs1, imm   - XOR immediate")
+	fmt.Println("  slti rd, rs1, imm   - Set if less than immediate")
+	fmt.Println("  sltiu rd, rs1, imm  - Set if less than immediate unsigned")
+	fmt.Println("  lui rd, imm         - Load upper immediate")
+	fmt.Println("  auipc rd, imm       - Add upper immediate to PC")
+	fmt.Println("  jal rd, offset      - Jump and link")
+	fmt.Println("  jalr rd, rs1, offset - Jump and link register")
+	fmt.Println("  beq rs1, rs2, offset - Branch if equal")
+	fmt.Println("  bne rs1, rs2, offset - Branch if not equal")
+	fmt.Println("  blt rs1, rs2, offset - Branch if less than")
+	fmt.Println("  bge rs1, rs2, offset - Branch if greater or equal")
+	fmt.Println("  bltu rs1, rs2, offset - Branch if less than unsigned")
+	fmt.Println("  bgeu rs1, rs2, offset - Branch if greater or equal unsigned")
+	fmt.Println("  lw rd, offset(rs1)   - Load word")
+	fmt.Println("  lh rd, offset(rs1)   - Load halfword")
+	fmt.Println("  lb rd, offset(rs1)   - Load byte")
+	fmt.Println("  lwu rd, offset(rs1)  - Load word unsigned")
+	fmt.Println("  lhu rd, offset(rs1)  - Load halfword unsigned")
+	fmt.Println("  lbu rd, offset(rs1)  - Load byte unsigned")
+	fmt.Println("  sw rs2, offset(rs1)  - Store word")
+	fmt.Println("  sh rs2, offset(rs1)  - Store halfword")
+	fmt.Println("  sb rs2, offset(rs1)  - Store byte")
 }
 
 func (r *REPL) handleGateCommand(args []string) {
@@ -242,7 +291,7 @@ func (r *REPL) handleRISCCommand(args []string) {
 
 	// Join all arguments to reconstruct the instruction
 	instruction := strings.Join(args, " ")
-	
+
 	// Parse and execute the RISC-V instruction
 	if err := r.machine.ExecuteRISCInstruction(instruction); err != nil {
 		fmt.Printf("Error executing RISC-V instruction: %v\n", err)
@@ -282,4 +331,4 @@ func (r *REPL) handleRegistersCommand() {
 	for i, reg := range registers {
 		fmt.Printf("  x%d: %d\n", i, reg)
 	}
-} 
+}
