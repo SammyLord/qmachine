@@ -12,15 +12,19 @@ import (
 
 // REPL represents the quantum computer REPL
 type REPL struct {
-	machine *quantum.QuantumRISCVMachine
-	reader  *bufio.Reader
+	machine     *quantum.QuantumRISCVMachine
+	hostMachine *quantum.HostQuantumMachine
+	reader      *bufio.Reader
+	useHost     bool
 }
 
 // NewREPL creates a new REPL instance
 func NewREPL(numQubits int) *REPL {
 	return &REPL{
-		machine: quantum.NewQuantumRISCVMachine(numQubits),
-		reader:  bufio.NewReader(os.Stdin),
+		machine:     quantum.NewQuantumRISCVMachine(numQubits),
+		hostMachine: quantum.NewHostQuantumMachine(numQubits),
+		reader:      bufio.NewReader(os.Stdin),
+		useHost:     false,
 	}
 }
 
@@ -35,6 +39,8 @@ func (r *REPL) Start() {
 	fmt.Println("  riscv <instruction>                - Execute RISC-V instruction")
 	fmt.Println("  load <file>                        - Load RISC-V program from file")
 	fmt.Println("  run                                - Run loaded RISC-V program")
+	fmt.Println("  run-host                           - Run loaded program using host-native execution")
+	fmt.Println("  mode                               - Toggle between VM and host-native execution")
 	fmt.Println("  registers                          - Show RISC-V registers")
 	fmt.Println("  help                               - Show this help message")
 	fmt.Println("  exit                               - Exit REPL")
@@ -123,6 +129,11 @@ func (r *REPL) Start() {
 			r.handleLoadCommand(args)
 		case "run":
 			r.handleRunCommand()
+		case "run-host":
+			r.useHost = true
+			r.handleRunCommand()
+		case "mode":
+			r.handleModeCommand()
 		case "registers":
 			r.handleRegistersCommand()
 		default:
@@ -140,6 +151,8 @@ func (r *REPL) showHelp() {
 	fmt.Println("  riscv <instruction>                - Execute RISC-V instruction")
 	fmt.Println("  load <file>                        - Load RISC-V program from file")
 	fmt.Println("  run                                - Run loaded RISC-V program")
+	fmt.Println("  run-host                           - Run loaded program using host-native execution")
+	fmt.Println("  mode                               - Toggle between VM and host-native execution")
 	fmt.Println("  registers                          - Show RISC-V registers")
 	fmt.Println("  help                               - Show this help message")
 	fmt.Println("  exit                               - Exit REPL")
@@ -317,18 +330,76 @@ func (r *REPL) handleLoadCommand(args []string) {
 }
 
 func (r *REPL) handleRunCommand() {
-	if err := r.machine.ExecuteRISCProgram(); err != nil {
-		fmt.Printf("Error running RISC-V program: %v\n", err)
-		return
+	if r.useHost {
+		// Execute program using host-native execution
+		for _, inst := range r.machine.GetRISCProgram() {
+			if isQuantumInstruction(inst.Opcode) {
+				if err := r.hostMachine.ExecuteQuantumRISCV(inst); err != nil {
+					fmt.Printf("Error executing quantum instruction: %v\n", err)
+					return
+				}
+			} else {
+				// Execute classical RISC-V instructions using the standard machine
+				var instruction string
+				switch inst.Opcode {
+				case "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu":
+					instruction = fmt.Sprintf("%s x%d, x%d, x%d", inst.Opcode, inst.Rd, inst.Rs1, inst.Rs2)
+				case "addi", "slli", "srli", "srai", "andi", "ori", "xori", "slti", "sltiu":
+					instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rd, inst.Rs1, inst.Imm)
+				case "lui", "auipc":
+					instruction = fmt.Sprintf("%s x%d, %d", inst.Opcode, inst.Rd, inst.Imm)
+				case "jal":
+					instruction = fmt.Sprintf("%s x%d, %d", inst.Opcode, inst.Rd, inst.Offset)
+				case "jalr":
+					instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rd, inst.Rs1, inst.Offset)
+				case "beq", "bne", "blt", "bge", "bltu", "bgeu":
+					instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rs1, inst.Rs2, inst.Offset)
+				case "lw", "lh", "lb", "lwu", "lhu", "lbu":
+					instruction = fmt.Sprintf("%s x%d, %d(x%d)", inst.Opcode, inst.Rd, inst.Offset, inst.Rs1)
+				case "sw", "sh", "sb":
+					instruction = fmt.Sprintf("%s x%d, %d(x%d)", inst.Opcode, inst.Rs2, inst.Offset, inst.Rs1)
+				default:
+					fmt.Printf("Unknown instruction type: %s\n", inst.Opcode)
+					return
+				}
+				if err := r.machine.ExecuteRISCInstruction(instruction); err != nil {
+					fmt.Printf("Error executing RISC-V instruction: %v\n", err)
+					return
+				}
+			}
+		}
+		fmt.Println("RISC-V program executed successfully using host-native execution")
+	} else {
+		// Execute program using VM mode
+		if err := r.machine.ExecuteRISCProgram(); err != nil {
+			fmt.Printf("Error running RISC-V program: %v\n", err)
+			return
+		}
+		fmt.Println("RISC-V program executed successfully using VM mode")
 	}
+}
 
-	fmt.Println("RISC-V program executed successfully")
+func (r *REPL) handleModeCommand() {
+	r.useHost = !r.useHost
+	if r.useHost {
+		fmt.Println("Switched to host-native execution mode")
+	} else {
+		fmt.Println("Switched to VM execution mode")
+	}
 }
 
 func (r *REPL) handleRegistersCommand() {
-	registers := r.machine.GetRegisters()
-	fmt.Println("RISC-V Registers:")
-	for i, reg := range registers {
-		fmt.Printf("  x%d: %d\n", i, reg)
+	if r.useHost {
+		registers := r.hostMachine.GetRegisters()
+		fmt.Println("RISC-V Registers (Host-native mode):")
+		for i, reg := range registers {
+			fmt.Printf("  x%d: %d\n", i, reg)
+		}
+	} else {
+		registers := r.machine.GetRegisters()
+		fmt.Println("RISC-V Registers (VM mode):")
+		for i, reg := range registers {
+			fmt.Printf("  x%d: %d\n", i, reg)
+		}
 	}
 }

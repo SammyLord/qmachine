@@ -369,6 +369,17 @@ func (m *QuantumRISCVMachine) executeRISCInstruction(inst RISCInstruction) error
 
 // parseRISCInstruction parses a RISC-V instruction string
 func parseRISCInstruction(instruction string) (RISCInstruction, error) {
+	// Remove comments
+	if commentIndex := strings.Index(instruction, "#"); commentIndex != -1 {
+		instruction = instruction[:commentIndex]
+	}
+
+	// Trim whitespace
+	instruction = strings.TrimSpace(instruction)
+	if instruction == "" {
+		return RISCInstruction{}, fmt.Errorf("empty instruction")
+	}
+
 	parts := strings.Fields(instruction)
 	if len(parts) == 0 {
 		return RISCInstruction{}, fmt.Errorf("empty instruction")
@@ -379,6 +390,71 @@ func parseRISCInstruction(instruction string) (RISCInstruction, error) {
 	}
 
 	switch inst.Opcode {
+	case "qinit":
+		if len(parts) != 2 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments for qinit")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rd = rd
+
+	case "qapply":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments for qapply")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		imm, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid immediate value: %v", err)
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Imm = imm
+
+	case "qmeasure":
+		if len(parts) != 3 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments for qmeasure")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+
+	case "qentangle":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments for qentangle")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs2, err := parseRegister(parts[3])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Rs2 = rs2
+
 	case "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu":
 		if len(parts) != 4 {
 			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
@@ -581,4 +657,9 @@ func (m *QuantumRISCVMachine) GetState() *QuantumState {
 // GetQuantumVolume returns the quantum volume of the machine
 func (m *QuantumRISCVMachine) GetQuantumVolume() int {
 	return 4269 // As specified in the requirements
+}
+
+// GetRISCProgram returns the current RISC program
+func (m *QuantumRISCVMachine) GetRISCProgram() []RISCInstruction {
+	return m.riscProgram
 }

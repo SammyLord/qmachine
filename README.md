@@ -9,6 +9,8 @@ A high-performance, realistic simulation of a quantum computer written in Go, fe
 - Quantum Volume of 4269
 - RISC-V based instruction set with 128 virtual registers (extended from standard 32)
 - Interactive REPL interface
+- Direct execution of quantum RISC-V programs from command line
+- Host-native quantum execution mode for improved performance
 - Support for common quantum gates:
   - Pauli gates (X, Y, Z)
   - Hadamard gate (H)
@@ -53,9 +55,60 @@ cd qmachine
 
 ## Usage
 
+### Interactive REPL Mode
 Run the REPL interface:
 ```bash
 go run .
+```
+
+### Direct Program Execution
+Execute a quantum RISC-V program in VM mode:
+```bash
+go run . -quantum=program.riscv
+```
+
+Execute a quantum RISC-V program using host-native execution (improved performance):
+```bash
+go run . -host-quantum=program.riscv
+```
+
+You can also specify the number of qubits:
+```bash
+go run . -qubits=1000 -host-quantum=program.riscv
+```
+
+The host-native execution mode translates quantum RISC-V instructions directly to native Go code, potentially offering better performance than the VM mode. It uses a compatibility layer to handle the translation from quantum RISC-V to host machine instructions.
+
+### Example Quantum RISC-V Program
+
+Contents of `quantum_test.riscv`:
+```
+# Initialize quantum registers
+qinit x1    # Initialize x1 as a quantum register
+qinit x2    # Initialize x2 as a quantum register
+
+# Apply quantum gates
+qapply x1, x1, 3  # Apply Hadamard gate to x1
+qapply x2, x2, 0  # Apply X gate to x2
+
+# Entangle the registers
+qentangle x3, x1, x2  # Entangle x1 and x2, store result in x3
+
+# Classical computation
+addi x4, x0, 42      # Load immediate value 42 into x4
+addi x5, x0, 58      # Load immediate value 58 into x5
+add x6, x4, x5       # Add x4 and x5, store in x6
+
+# Measure quantum register
+qmeasure x7, x3      # Measure x3 and store result in x7
+
+# Final classical computation
+add x8, x6, x7       # Add classical result (x6) with quantum measurement (x7)
+```
+
+Execute it:
+```bash
+go run . -quantum=quantum_test.riscv
 ```
 
 ### REPL Commands
@@ -70,23 +123,6 @@ go run .
 - `registers` - Show RISC-V registers
 - `help` - Show help message
 - `exit` - Exit REPL
-
-### Example RISC-V Program
-
-Contents of `test.riscv`:
-```
-# Add two numbers
-addi x1, x0, 42
-addi x2, x0, 58
-add x3, x1, x2
-```
-
-Load and run it:
-```
-qmachine> load test.riscv
-qmachine> run
-qmachine> registers
-```
 
 ## Project Structure
 
