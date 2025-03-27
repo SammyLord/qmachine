@@ -204,6 +204,10 @@ func (r *REPL) showHelp() {
 }
 
 func (r *REPL) handleGateCommand(args []string) {
+	if r.useHost {
+		fmt.Println("Error: Gate commands are exclusive to VM execution mode.")
+		return
+	}
 	if len(args) < 2 {
 		fmt.Println("Usage: gate <type> <target> [controls...]")
 		return
@@ -263,6 +267,10 @@ func (r *REPL) handleGateCommand(args []string) {
 }
 
 func (r *REPL) handleMeasureCommand(args []string) {
+	if r.useHost {
+		fmt.Println("Error: Measure commands are exclusive to VM execution mode.")
+		return
+	}
 	if len(args) != 1 {
 		fmt.Println("Usage: measure <qubit>")
 		return
@@ -283,6 +291,10 @@ func (r *REPL) handleMeasureCommand(args []string) {
 }
 
 func (r *REPL) handleStateCommand() {
+	if r.useHost {
+		fmt.Println("Error: State commands are exclusive to VM execution mode.")
+		return
+	}
 	state := r.machine.GetState()
 	fmt.Printf("Current quantum state:\n")
 	fmt.Printf("Number of qubits: %d\n", state.NumQubits())
@@ -292,11 +304,19 @@ func (r *REPL) handleStateCommand() {
 }
 
 func (r *REPL) handleResetCommand() {
+	if r.useHost {
+		fmt.Println("Error: Reset commands are exclusive to VM execution mode.")
+		return
+	}
 	r.machine = quantum.NewQuantumRISCVMachine(r.machine.GetState().NumQubits())
 	fmt.Println("Quantum state reset to |0⟩^⊗n")
 }
 
 func (r *REPL) handleRISCCommand(args []string) {
+	if r.useHost {
+		fmt.Println("Error: Direct RISC-V command execution is exclusive to VM execution mode.")
+		return
+	}
 	if len(args) == 0 {
 		fmt.Println("Usage: riscv <instruction>")
 		return
@@ -390,16 +410,12 @@ func (r *REPL) handleModeCommand() {
 
 func (r *REPL) handleRegistersCommand() {
 	if r.useHost {
-		registers := r.hostMachine.GetRegisters()
-		fmt.Println("RISC-V Registers (Host-native mode):")
-		for i, reg := range registers {
-			fmt.Printf("  x%d: %d\n", i, reg)
-		}
-	} else {
-		registers := r.machine.GetRegisters()
-		fmt.Println("RISC-V Registers (VM mode):")
-		for i, reg := range registers {
-			fmt.Printf("  x%d: %d\n", i, reg)
-		}
+		fmt.Println("Error: Register inspection is exclusive to VM execution mode.")
+		return
+	}
+	registers := r.machine.GetRegisters()
+	fmt.Println("RISC-V Registers:")
+	for i, reg := range registers {
+		fmt.Printf("  x%d: %d\n", i, reg)
 	}
 }
