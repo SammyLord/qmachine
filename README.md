@@ -58,7 +58,7 @@ go run .
 
 ### Example RISC-V Program
 
-Create a file `program.riscv`:
+Contents of `test.riscv`:
 ```
 # Add two numbers
 addi x1, x0, 42
@@ -68,7 +68,7 @@ add x3, x1, x2
 
 Load and run it:
 ```
-qmachine> load program.riscv
+qmachine> load test.riscv
 qmachine> run
 qmachine> registers
 ```
