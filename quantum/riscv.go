@@ -485,6 +485,9 @@ func parseRISCInstruction(instruction string) (RISCInstruction, error) {
 
 // parseRegister parses a register name (e.g., "x0", "x1", etc.)
 func parseRegister(reg string) (uint8, error) {
+	// Remove any trailing commas
+	reg = strings.TrimRight(reg, ",")
+	
 	if !strings.HasPrefix(reg, "x") {
 		return 0, fmt.Errorf("invalid register format: %s", reg)
 	}
@@ -510,7 +513,8 @@ func parseLoadStore(arg string) (uint8, int64, error) {
 		return 0, 0, fmt.Errorf("invalid offset value: %v", err)
 	}
 
-	reg := strings.TrimRight(parts[1], ")")
+	// Remove any trailing commas and closing parenthesis
+	reg := strings.TrimRight(strings.TrimRight(parts[1], ","), ")")
 	rs1, err := parseRegister(reg)
 	if err != nil {
 		return 0, 0, err

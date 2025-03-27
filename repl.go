@@ -112,6 +112,14 @@ func (r *REPL) Start() {
 			r.handleStateCommand()
 		case "reset":
 			r.handleResetCommand()
+		case "riscv":
+			r.handleRISCCommand(args)
+		case "load":
+			r.handleLoadCommand(args)
+		case "run":
+			r.handleRunCommand()
+		case "registers":
+			r.handleRegistersCommand()
 		default:
 			fmt.Println("Unknown command. Type 'help' for available commands.")
 		}
@@ -124,6 +132,10 @@ func (r *REPL) showHelp() {
 	fmt.Println("  measure <qubit>                    - Measure a qubit")
 	fmt.Println("  state                              - Show current quantum state")
 	fmt.Println("  reset                              - Reset quantum state")
+	fmt.Println("  riscv <instruction>                - Execute RISC-V instruction")
+	fmt.Println("  load <file>                        - Load RISC-V program from file")
+	fmt.Println("  run                                - Run loaded RISC-V program")
+	fmt.Println("  registers                          - Show RISC-V registers")
 	fmt.Println("  help                               - Show this help message")
 	fmt.Println("  exit                               - Exit REPL")
 	fmt.Println("\nAvailable gates: X, Y, Z, H, S, T, CNOT")
@@ -220,4 +232,54 @@ func (r *REPL) handleStateCommand() {
 func (r *REPL) handleResetCommand() {
 	r.machine = quantum.NewQuantumRISCVMachine(r.machine.GetState().NumQubits())
 	fmt.Println("Quantum state reset to |0⟩^⊗n")
+}
+
+func (r *REPL) handleRISCCommand(args []string) {
+	if len(args) == 0 {
+		fmt.Println("Usage: riscv <instruction>")
+		return
+	}
+
+	// Join all arguments to reconstruct the instruction
+	instruction := strings.Join(args, " ")
+	
+	// Parse and execute the RISC-V instruction
+	if err := r.machine.ExecuteRISCInstruction(instruction); err != nil {
+		fmt.Printf("Error executing RISC-V instruction: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Executed RISC-V instruction: %s\n", instruction)
+}
+
+func (r *REPL) handleLoadCommand(args []string) {
+	if len(args) != 1 {
+		fmt.Println("Usage: load <file>")
+		return
+	}
+
+	file := args[0]
+	if err := r.machine.LoadRISCProgram(file); err != nil {
+		fmt.Printf("Error loading RISC-V program: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Loaded RISC-V program from %s\n", file)
+}
+
+func (r *REPL) handleRunCommand() {
+	if err := r.machine.ExecuteRISCProgram(); err != nil {
+		fmt.Printf("Error running RISC-V program: %v\n", err)
+		return
+	}
+
+	fmt.Println("RISC-V program executed successfully")
+}
+
+func (r *REPL) handleRegistersCommand() {
+	registers := r.machine.GetRegisters()
+	fmt.Println("RISC-V Registers:")
+	for i, reg := range registers {
+		fmt.Printf("  x%d: %d\n", i, reg)
+	}
 } 
