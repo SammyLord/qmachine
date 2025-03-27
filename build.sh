@@ -1,5 +1,5 @@
 #!/bin/bash
-
+rm -rf build
 # Create build directory if it doesn't exist
 mkdir -p build
 
