@@ -1,0 +1,486 @@
+package quantum
+
+import (
+	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
+)
+
+// Instruction represents a RISC-V instruction for quantum operations
+type Instruction struct {
+	Opcode    uint8
+	Target    uint8
+	Controls  []uint8
+	Immediate uint16
+}
+
+// RISCInstruction represents a RISC-V instruction
+type RISCInstruction struct {
+	Opcode  string
+	Rd      uint8
+	Rs1     uint8
+	Rs2     uint8
+	Imm     int64
+	Offset  int64
+}
+
+// QuantumRISCVMachine represents our quantum computer with RISC-V instruction set
+type QuantumRISCVMachine struct {
+	state       *QuantumState
+	program     []Instruction
+	riscProgram []RISCInstruction
+	pc          uint32
+	registers   [32]uint64
+	quantumRegs [32]*QuantumState
+	memory      []byte
+}
+
+// NewQuantumRISCVMachine creates a new quantum RISC-V machine
+func NewQuantumRISCVMachine(numQubits int) *QuantumRISCVMachine {
+	return &QuantumRISCVMachine{
+		state:       NewQuantumState(numQubits),
+		program:     make([]Instruction, 0),
+		riscProgram: make([]RISCInstruction, 0),
+		pc:          0,
+		registers:   [32]uint64{},
+		quantumRegs: [32]*QuantumState{},
+		memory:      make([]byte, 1024*1024), // 1MB of memory
+	}
+}
+
+// LoadRISCProgram loads a RISC-V program from a file
+func (m *QuantumRISCVMachine) LoadRISCProgram(filename string) error {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("error reading file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	m.riscProgram = make([]RISCInstruction, 0)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		inst, err := parseRISCInstruction(line)
+		if err != nil {
+			return fmt.Errorf("error parsing instruction '%s': %v", line, err)
+		}
+		m.riscProgram = append(m.riscProgram, inst)
+	}
+
+	return nil
+}
+
+// ExecuteRISCInstruction executes a single RISC-V instruction
+func (m *QuantumRISCVMachine) ExecuteRISCInstruction(instruction string) error {
+	inst, err := parseRISCInstruction(instruction)
+	if err != nil {
+		return err
+	}
+
+	return m.executeRISCInstruction(inst)
+}
+
+// ExecuteRISCProgram executes the loaded RISC-V program
+func (m *QuantumRISCVMachine) ExecuteRISCProgram() error {
+	m.pc = 0
+	for m.pc < uint32(len(m.riscProgram)) {
+		if err := m.executeRISCInstruction(m.riscProgram[m.pc]); err != nil {
+			return fmt.Errorf("error at PC %d: %v", m.pc, err)
+		}
+		m.pc++
+	}
+	return nil
+}
+
+// executeRISCInstruction executes a single RISC-V instruction
+func (m *QuantumRISCVMachine) executeRISCInstruction(inst RISCInstruction) error {
+	switch inst.Opcode {
+	case "add":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] + m.registers[inst.Rs2]
+	case "sub":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] - m.registers[inst.Rs2]
+	case "and":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] & m.registers[inst.Rs2]
+	case "or":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] | m.registers[inst.Rs2]
+	case "xor":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] ^ m.registers[inst.Rs2]
+	case "sll":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] << m.registers[inst.Rs2]
+	case "srl":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] >> m.registers[inst.Rs2]
+	case "sra":
+		m.registers[inst.Rd] = uint64(int64(m.registers[inst.Rs1]) >> m.registers[inst.Rs2])
+	case "slt":
+		if int64(m.registers[inst.Rs1]) < int64(m.registers[inst.Rs2]) {
+			m.registers[inst.Rd] = 1
+		} else {
+			m.registers[inst.Rd] = 0
+		}
+	case "sltu":
+		if m.registers[inst.Rs1] < m.registers[inst.Rs2] {
+			m.registers[inst.Rd] = 1
+		} else {
+			m.registers[inst.Rd] = 0
+		}
+	case "addi":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] + uint64(inst.Imm)
+	case "slli":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] << uint64(inst.Imm)
+	case "srli":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] >> uint64(inst.Imm)
+	case "srai":
+		m.registers[inst.Rd] = uint64(int64(m.registers[inst.Rs1]) >> inst.Imm)
+	case "andi":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] & uint64(inst.Imm)
+	case "ori":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] | uint64(inst.Imm)
+	case "xori":
+		m.registers[inst.Rd] = m.registers[inst.Rs1] ^ uint64(inst.Imm)
+	case "slti":
+		if int64(m.registers[inst.Rs1]) < inst.Imm {
+			m.registers[inst.Rd] = 1
+		} else {
+			m.registers[inst.Rd] = 0
+		}
+	case "sltiu":
+		if m.registers[inst.Rs1] < uint64(inst.Imm) {
+			m.registers[inst.Rd] = 1
+		} else {
+			m.registers[inst.Rd] = 0
+		}
+	case "lui":
+		m.registers[inst.Rd] = uint64(inst.Imm) << 12
+	case "auipc":
+		m.registers[inst.Rd] = uint64(m.pc) + (uint64(inst.Imm) << 12)
+	case "jal":
+		nextPC := uint64(m.pc) + uint64(inst.Offset)
+		m.registers[inst.Rd] = uint64(m.pc) + 4
+		m.pc = uint32(nextPC)
+		return nil
+	case "jalr":
+		nextPC := m.registers[inst.Rs1] + uint64(inst.Offset)
+		m.registers[inst.Rd] = uint64(m.pc) + 4
+		m.pc = uint32(nextPC)
+		return nil
+	case "beq":
+		if m.registers[inst.Rs1] == m.registers[inst.Rs2] {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "bne":
+		if m.registers[inst.Rs1] != m.registers[inst.Rs2] {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "blt":
+		if int64(m.registers[inst.Rs1]) < int64(m.registers[inst.Rs2]) {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "bge":
+		if int64(m.registers[inst.Rs1]) >= int64(m.registers[inst.Rs2]) {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "bltu":
+		if m.registers[inst.Rs1] < m.registers[inst.Rs2] {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "bgeu":
+		if m.registers[inst.Rs1] >= m.registers[inst.Rs2] {
+			m.pc = uint32(int64(m.pc) + inst.Offset)
+			return nil
+		}
+	case "lw":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+4 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(m.memory[addr]) |
+			uint64(m.memory[addr+1])<<8 |
+			uint64(m.memory[addr+2])<<16 |
+			uint64(m.memory[addr+3])<<24
+	case "lh":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+2 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(int16(uint16(m.memory[addr]) |
+			uint16(m.memory[addr+1])<<8))
+	case "lb":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr >= uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(int8(m.memory[addr]))
+	case "lwu":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+4 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(m.memory[addr]) |
+			uint64(m.memory[addr+1])<<8 |
+			uint64(m.memory[addr+2])<<16 |
+			uint64(m.memory[addr+3])<<24
+	case "lhu":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+2 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(m.memory[addr]) |
+			uint64(m.memory[addr+1])<<8
+	case "lbu":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr >= uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.registers[inst.Rd] = uint64(m.memory[addr])
+	case "sw":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+4 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		val := m.registers[inst.Rs2]
+		m.memory[addr] = byte(val)
+		m.memory[addr+1] = byte(val >> 8)
+		m.memory[addr+2] = byte(val >> 16)
+		m.memory[addr+3] = byte(val >> 24)
+	case "sh":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr+2 > uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		val := m.registers[inst.Rs2]
+		m.memory[addr] = byte(val)
+		m.memory[addr+1] = byte(val >> 8)
+	case "sb":
+		addr := m.registers[inst.Rs1] + uint64(inst.Offset)
+		if addr >= uint64(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds")
+		}
+		m.memory[addr] = byte(m.registers[inst.Rs2])
+	default:
+		return fmt.Errorf("unknown RISC-V instruction: %s", inst.Opcode)
+	}
+
+	return nil
+}
+
+// parseRISCInstruction parses a RISC-V instruction string
+func parseRISCInstruction(instruction string) (RISCInstruction, error) {
+	parts := strings.Fields(instruction)
+	if len(parts) == 0 {
+		return RISCInstruction{}, fmt.Errorf("empty instruction")
+	}
+
+	inst := RISCInstruction{
+		Opcode: parts[0],
+	}
+
+	switch inst.Opcode {
+	case "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs2, err := parseRegister(parts[3])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Rs2 = rs2
+
+	case "addi", "slli", "srli", "srai", "andi", "ori", "xori", "slti", "sltiu":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		imm, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid immediate value: %v", err)
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Imm = imm
+
+	case "lui", "auipc":
+		if len(parts) != 3 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		imm, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid immediate value: %v", err)
+		}
+		inst.Rd = rd
+		inst.Imm = imm
+
+	case "jal":
+		if len(parts) != 3 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		offset, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid offset value: %v", err)
+		}
+		inst.Rd = rd
+		inst.Offset = offset
+
+	case "jalr":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		offset, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid offset value: %v", err)
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Offset = offset
+
+	case "beq", "bne", "blt", "bge", "bltu", "bgeu":
+		if len(parts) != 4 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rs1, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs2, err := parseRegister(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		offset, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil {
+			return RISCInstruction{}, fmt.Errorf("invalid offset value: %v", err)
+		}
+		inst.Rs1 = rs1
+		inst.Rs2 = rs2
+		inst.Offset = offset
+
+	case "lw", "lh", "lb", "lwu", "lhu", "lbu":
+		if len(parts) != 3 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rd, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, offset, err := parseLoadStore(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rd = rd
+		inst.Rs1 = rs1
+		inst.Offset = offset
+
+	case "sw", "sh", "sb":
+		if len(parts) != 3 {
+			return RISCInstruction{}, fmt.Errorf("invalid number of arguments")
+		}
+		rs2, err := parseRegister(parts[1])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		rs1, offset, err := parseLoadStore(parts[2])
+		if err != nil {
+			return RISCInstruction{}, err
+		}
+		inst.Rs1 = rs1
+		inst.Rs2 = rs2
+		inst.Offset = offset
+
+	default:
+		return RISCInstruction{}, fmt.Errorf("unknown instruction: %s", inst.Opcode)
+	}
+
+	return inst, nil
+}
+
+// parseRegister parses a register name (e.g., "x0", "x1", etc.)
+func parseRegister(reg string) (uint8, error) {
+	if !strings.HasPrefix(reg, "x") {
+		return 0, fmt.Errorf("invalid register format: %s", reg)
+	}
+	num, err := strconv.ParseUint(reg[1:], 10, 8)
+	if err != nil {
+		return 0, fmt.Errorf("invalid register number: %v", err)
+	}
+	if num > 31 {
+		return 0, fmt.Errorf("register number out of range: %d", num)
+	}
+	return uint8(num), nil
+}
+
+// parseLoadStore parses load/store instruction arguments (e.g., "4(x1)")
+func parseLoadStore(arg string) (uint8, int64, error) {
+	parts := strings.Split(arg, "(")
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid load/store format: %s", arg)
+	}
+
+	offset, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid offset value: %v", err)
+	}
+
+	reg := strings.TrimRight(parts[1], ")")
+	rs1, err := parseRegister(reg)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return rs1, offset, nil
+}
+
+// GetRegisters returns the current state of all registers
+func (m *QuantumRISCVMachine) GetRegisters() [32]uint64 {
+	return m.registers
+}
+
+// GetState returns the current quantum state
+func (m *QuantumRISCVMachine) GetState() *QuantumState {
+	return m.state
+}
+
+// GetQuantumVolume returns the quantum volume of the machine
+func (m *QuantumRISCVMachine) GetQuantumVolume() int {
+	return 4269 // As specified in the requirements
+} 
