@@ -64,24 +64,24 @@ go run .
 ### Direct Program Execution
 Execute a quantum RISC-V program in VM mode:
 ```bash
-go run . -quantum=program.riscv
+go run . -quantum=program.riscq
 ```
 
 Execute a quantum RISC-V program using host-native execution (improved performance):
 ```bash
-go run . -host-quantum=program.riscv
+go run . -host-quantum=program.riscq
 ```
 
 You can also specify the number of qubits:
 ```bash
-go run . -qubits=1000 -host-quantum=program.riscv
+go run . -qubits=1000 -host-quantum=program.riscq
 ```
 
 The host-native execution mode translates quantum RISC-V instructions directly to native Go code, potentially offering better performance than the VM mode. It uses a compatibility layer to handle the translation from quantum RISC-V to host machine instructions.
 
 ### Example Quantum RISC-V Program
 
-Contents of `quantum_test.riscv`:
+Contents of `quantum_test.riscq`:
 ```
 # Initialize quantum registers
 qinit x1    # Initialize x1 as a quantum register
@@ -108,7 +108,7 @@ add x8, x6, x7       # Add classical result (x6) with quantum measurement (x7)
 
 Execute it:
 ```bash
-go run . -quantum=quantum_test.riscv
+go run . -quantum=quantum_test.riscq
 ```
 
 ### REPL Commands
