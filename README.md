@@ -144,3 +144,13 @@ SPL-R5 License
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. 
+
+## Quantum nerds please get off my back... (A quick disclamer)
+
+Before you say something like "ackshully *snort* quantum mechanics makes this impossible and therefore forbids this..." I found slack in the rope so to speak. As in, I found a way to do this more efficient than anyone else who has tried.
+
+* ***Full speed?*** No, of course not.
+
+* ***Close enought for demonstration?*** Yes.
+
+* ***Still awesome?*** IMHO yes.
