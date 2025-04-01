@@ -73,38 +73,196 @@ func executeHostQuantumFile(filename string, numQubits int) error {
 	// Create host machine for native execution
 	hostMachine := quantum.NewHostQuantumMachine(numQubits)
 
-	// Execute each instruction directly on the host
-	for _, inst := range machine.GetRISCProgram() {
+	// Program counter for control flow
+	pc := uint32(0)
+	program := machine.GetRISCProgram()
+
+	// Execute instructions until we reach the end of the program
+	for pc < uint32(len(program)) {
+		inst := program[pc]
+
 		if isQuantumInstruction(inst.Opcode) {
 			// Execute quantum instructions using host-native execution
 			if err := hostMachine.ExecuteQuantumRISCV(inst); err != nil {
-				return fmt.Errorf("error executing quantum instruction on host: %v", err)
+				return fmt.Errorf("error executing quantum instruction on host at PC %d: %v", pc, err)
 			}
+			pc++
 		} else {
 			// Execute classical RISC-V instructions
-			var instruction string
 			switch inst.Opcode {
 			case "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu":
-				instruction = fmt.Sprintf("%s x%d, x%d, x%d", inst.Opcode, inst.Rd, inst.Rs1, inst.Rs2)
+				// R-type instructions
+				rs1 := hostMachine.GetRegister(inst.Rs1)
+				rs2 := hostMachine.GetRegister(inst.Rs2)
+				var result uint64
+				switch inst.Opcode {
+				case "add":
+					result = rs1 + rs2
+				case "sub":
+					result = rs1 - rs2
+				case "and":
+					result = rs1 & rs2
+				case "or":
+					result = rs1 | rs2
+				case "xor":
+					result = rs1 ^ rs2
+				case "sll":
+					result = rs1 << rs2
+				case "srl":
+					result = rs1 >> rs2
+				case "sra":
+					result = uint64(int64(rs1) >> rs2)
+				case "slt":
+					if int64(rs1) < int64(rs2) {
+						result = 1
+					}
+				case "sltu":
+					if rs1 < rs2 {
+						result = 1
+					}
+				}
+				hostMachine.SetRegister(inst.Rd, result)
+				pc++
+
 			case "addi", "slli", "srli", "srai", "andi", "ori", "xori", "slti", "sltiu":
-				instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rd, inst.Rs1, inst.Imm)
+				// I-type instructions
+				rs1 := hostMachine.GetRegister(inst.Rs1)
+				var result uint64
+				switch inst.Opcode {
+				case "addi":
+					result = rs1 + uint64(inst.Imm)
+				case "slli":
+					result = rs1 << uint64(inst.Imm)
+				case "srli":
+					result = rs1 >> uint64(inst.Imm)
+				case "srai":
+					result = uint64(int64(rs1) >> uint64(inst.Imm))
+				case "andi":
+					result = rs1 & uint64(inst.Imm)
+				case "ori":
+					result = rs1 | uint64(inst.Imm)
+				case "xori":
+					result = rs1 ^ uint64(inst.Imm)
+				case "slti":
+					if int64(rs1) < inst.Imm {
+						result = 1
+					}
+				case "sltiu":
+					if rs1 < uint64(inst.Imm) {
+						result = 1
+					}
+				}
+				hostMachine.SetRegister(inst.Rd, result)
+				pc++
+
 			case "lui", "auipc":
-				instruction = fmt.Sprintf("%s x%d, %d", inst.Opcode, inst.Rd, inst.Imm)
+				// U-type instructions
+				switch inst.Opcode {
+				case "lui":
+					hostMachine.SetRegister(inst.Rd, uint64(inst.Imm<<12))
+				case "auipc":
+					hostMachine.SetRegister(inst.Rd, uint64(pc)+uint64(inst.Imm<<12))
+				}
+				pc++
+
 			case "jal":
-				instruction = fmt.Sprintf("%s x%d, %d", inst.Opcode, inst.Rd, inst.Offset)
+				// J-type instruction
+				hostMachine.SetRegister(inst.Rd, uint64(pc+1))
+				pc = uint32(int64(pc) + inst.Offset)
+
 			case "jalr":
-				instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rd, inst.Rs1, inst.Offset)
+				// I-type jump instruction
+				nextPc := uint32(int64(hostMachine.GetRegister(inst.Rs1)) + inst.Offset)
+				hostMachine.SetRegister(inst.Rd, uint64(pc+1))
+				pc = nextPc
+
 			case "beq", "bne", "blt", "bge", "bltu", "bgeu":
-				instruction = fmt.Sprintf("%s x%d, x%d, %d", inst.Opcode, inst.Rs1, inst.Rs2, inst.Offset)
+				// B-type instructions
+				rs1 := hostMachine.GetRegister(inst.Rs1)
+				rs2 := hostMachine.GetRegister(inst.Rs2)
+				var taken bool
+				switch inst.Opcode {
+				case "beq":
+					taken = rs1 == rs2
+				case "bne":
+					taken = rs1 != rs2
+				case "blt":
+					taken = int64(rs1) < int64(rs2)
+				case "bge":
+					taken = int64(rs1) >= int64(rs2)
+				case "bltu":
+					taken = rs1 < rs2
+				case "bgeu":
+					taken = rs1 >= rs2
+				}
+				if taken {
+					pc = uint32(int64(pc) + inst.Offset)
+				} else {
+					pc++
+				}
+
 			case "lw", "lh", "lb", "lwu", "lhu", "lbu":
-				instruction = fmt.Sprintf("%s x%d, %d(x%d)", inst.Opcode, inst.Rd, inst.Offset, inst.Rs1)
+				// Load instructions
+				addr := uint32(int64(hostMachine.GetRegister(inst.Rs1)) + inst.Offset)
+				var size uint8
+				var signExtend bool
+				switch inst.Opcode {
+				case "lw":
+					size = 4
+					signExtend = true
+				case "lh":
+					size = 2
+					signExtend = true
+				case "lb":
+					size = 1
+					signExtend = true
+				case "lwu":
+					size = 4
+					signExtend = false
+				case "lhu":
+					size = 2
+					signExtend = false
+				case "lbu":
+					size = 1
+					signExtend = false
+				}
+				val, err := hostMachine.LoadMemory(addr, size)
+				if err != nil {
+					return fmt.Errorf("error at PC %d: %v", pc, err)
+				}
+				if signExtend {
+					switch size {
+					case 1:
+						val = uint64(int8(val))
+					case 2:
+						val = uint64(int16(val))
+					case 4:
+						val = uint64(int32(val))
+					}
+				}
+				hostMachine.SetRegister(inst.Rd, val)
+				pc++
+
 			case "sw", "sh", "sb":
-				instruction = fmt.Sprintf("%s x%d, %d(x%d)", inst.Opcode, inst.Rs2, inst.Offset, inst.Rs1)
+				// Store instructions
+				addr := uint32(int64(hostMachine.GetRegister(inst.Rs1)) + inst.Offset)
+				val := hostMachine.GetRegister(inst.Rs2)
+				var size uint8
+				switch inst.Opcode {
+				case "sw":
+					size = 4
+				case "sh":
+					size = 2
+				case "sb":
+					size = 1
+				}
+				if err := hostMachine.StoreMemory(addr, val, size); err != nil {
+					return fmt.Errorf("error at PC %d: %v", pc, err)
+				}
+				pc++
+
 			default:
-				return fmt.Errorf("unknown instruction type: %s", inst.Opcode)
-			}
-			if err := machine.ExecuteRISCInstruction(instruction); err != nil {
-				return fmt.Errorf("error executing RISC-V instruction on host: %v", err)
+				return fmt.Errorf("unknown instruction type at PC %d: %s", pc, inst.Opcode)
 			}
 		}
 	}

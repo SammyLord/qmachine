@@ -142,3 +142,67 @@ func (m *HostQuantumMachine) GetRegisters() [128]uint64 {
 func (m *HostQuantumMachine) GetState() *HostQuantumState {
 	return m.state
 }
+
+// SetRegister sets the value of a register
+func (m *HostQuantumMachine) SetRegister(reg uint8, value uint64) {
+	if reg == 0 {
+		return // x0 is hardwired to zero
+	}
+	m.registers[reg] = value
+}
+
+// GetRegister gets the value of a register
+func (m *HostQuantumMachine) GetRegister(reg uint8) uint64 {
+	return m.registers[reg]
+}
+
+// LoadMemory loads a value from memory
+func (m *HostQuantumMachine) LoadMemory(addr uint32, size uint8) (uint64, error) {
+	switch size {
+	case 1: // byte
+		if addr >= uint32(len(m.memory)) {
+			return 0, fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		return uint64(m.memory[addr]), nil
+	case 2: // halfword
+		if addr+1 >= uint32(len(m.memory)) {
+			return 0, fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		return uint64(m.memory[addr]) | uint64(m.memory[addr+1])<<8, nil
+	case 4: // word
+		if addr+3 >= uint32(len(m.memory)) {
+			return 0, fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		return uint64(m.memory[addr]) | uint64(m.memory[addr+1])<<8 | uint64(m.memory[addr+2])<<16 | uint64(m.memory[addr+3])<<24, nil
+	default:
+		return 0, fmt.Errorf("invalid memory access size: %d", size)
+	}
+}
+
+// StoreMemory stores a value to memory
+func (m *HostQuantumMachine) StoreMemory(addr uint32, value uint64, size uint8) error {
+	switch size {
+	case 1: // byte
+		if addr >= uint32(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		m.memory[addr] = byte(value)
+	case 2: // halfword
+		if addr+1 >= uint32(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		m.memory[addr] = byte(value)
+		m.memory[addr+1] = byte(value >> 8)
+	case 4: // word
+		if addr+3 >= uint32(len(m.memory)) {
+			return fmt.Errorf("memory access out of bounds: addr %d", addr)
+		}
+		m.memory[addr] = byte(value)
+		m.memory[addr+1] = byte(value >> 8)
+		m.memory[addr+2] = byte(value >> 16)
+		m.memory[addr+3] = byte(value >> 24)
+	default:
+		return fmt.Errorf("invalid memory access size: %d", size)
+	}
+	return nil
+}
