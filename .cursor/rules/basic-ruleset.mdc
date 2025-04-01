@@ -1,0 +1,28 @@
+---
+description: Basic ruleset for Cursor from Sneed Group.
+globs: 
+alwaysApply: true
+---
+
+# Sneed Group Basic Coding Rules
+
+- Always use functional code
+- Always prefer simple, easy-to-understand code
+- Always create a .gitignore file
+- Always code what the user specifies and that of which it is obvious that its within the user's specifications
+- If not sure about something, ask the user
+- Keep ".gitignore" up to date
+- Comment code well
+- NEVER EVER EDIT .env files
+- ALWAYS put ".env" into ".gitignore"!
+- ALWAYS put not needed modules folders  (such as node_modules) into ".gitignore"!
+- ALWAYS put the folder where builds are into the ".gitignore"
+- NEVER put needed code and package/requirements lists into ".gitignore"
+- Don't change config files unless needed
+- Make each line of code (including but not limited to comments) 125 characters long maximum
+- If function line count is above 55, split into multiple smaller functions or refactor
+- If file line count above 600 split into more files or refactor
+- When creating a function, follow the UNIX rule of "Do one thing and do it well."
+- Feel free to auto-apply any changes that follow these or any other rules.
+- Always fix linting errors.
+- When you think you're finished writing the current round of code: run the app, check for errors in the console when we close the app, and fix them. Repeat until we have working code.

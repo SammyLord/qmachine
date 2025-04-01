@@ -24,4 +24,29 @@ go.work
 *.swo
 
 # Build directory
-build/ 
+build/
+
+# Environment files
+.env
+.env.*
+
+# Editor backup files
+*~
+
+# Debug files
+debug/
+
+# Log files
+*.log
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Binary output directories
+dist/
+release/
+
+# Test coverage
+coverage.txt
+coverage.html 
