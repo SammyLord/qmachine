@@ -1,6 +1,6 @@
 # QMachine - Quantum Computer Simulator
 
-A high-performance, realistic simulation of a quantum computer written in Go, featuring a RISC-V instruction set for quantum operations. Stable releases will be ported to GUtils.
+A high-performance, realistic simulation of a quantum computer written in Go, featuring a RISC-V instruction set for quantum operations. The more stable releases will be ported to GUtils.
 
 ## Features
 
